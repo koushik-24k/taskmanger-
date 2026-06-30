@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskFlow — Smart Task Management</title>
+  <meta name="description" content="TaskFlow: A premium task management app for creating, tracking, and completing tasks with Kanban boards, dashboards, and real-time sync." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ====================== AUTH SCREEN ====================== -->
+  <div id="auth-screen" class="auth-screen hidden">
+    <div class="auth-bg">
+      <div class="auth-blob blob-1"></div>
+      <div class="auth-blob blob-2"></div>
+      <div class="auth-blob blob-3"></div>
+    </div>
+    <div class="auth-container">
+      <div class="auth-brand">
+        <div class="brand-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="10" fill="url(#brandGrad)"/>
+            <path d="M8 16l5 5 11-11" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="brandGrad" x1="0" y1="0" x2="32" y2="32">
+                <stop offset="0%" stop-color="#6366f1"/>
+                <stop offset="100%" stop-color="#8b5cf6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="brand-name">TaskFlow</span>
+      </div>
+
+      <!-- Login Form -->
+      <div id="login-panel" class="auth-panel glass-card">
+        <h1 class="auth-title">Welcome back</h1>
+        <p class="auth-subtitle">Sign in to your workspace</p>
+        <form id="login-form" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="login-email">Email address</label>
+            <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" required />
+            <span class="field-error" id="login-email-err"></span>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <div class="password-wrap">
+              <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" required />
+              <button type="button" class="pw-toggle" data-target="login-password" aria-label="Toggle password">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <span class="field-error" id="login-pw-err"></span>
+          </div>
+          <div id="login-error" class="form-alert hidden"></div>
+          <button type="submit" class="btn-primary btn-full" id="login-btn">
+            <span class="btn-text">Sign In</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </form>
+        <p class="auth-switch">Don't have an account? <button class="link-btn" id="go-signup">Sign up free</button></p>
+        <p class="auth-demo-hint">Demo: <strong>demo@taskflow.app</strong> / <strong>demo1234</strong></p>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="signup-panel" class="auth-panel glass-card hidden">
+        <h1 class="auth-title">Create account</h1>
+        <p class="auth-subtitle">Start organizing your work today</p>
+        <form id="signup-form" class="auth-form" novalidate>
+          <div class="form-group">
+            <label for="signup-name">Full name</label>
+            <input type="text" id="signup-name" placeholder="Jane Doe" autocomplete="name" required />
+            <span class="field-error" id="signup-name-err"></span>
+          </div>
+          <div class="form-group">
+            <label for="signup-email">Email address</label>
+            <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email" required />
+            <span class="field-error" id="signup-email-err"></span>
+          </div>
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <div class="password-wrap">
+              <input type="password" id="signup-password" placeholder="Min. 8 characters" autocomplete="new-password" required />
+              <button type="button" class="pw-toggle" data-target="signup-password" aria-label="Toggle password">
+                <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="password-strength" id="pw-strength">
+              <div class="strength-bars"><span></span><span></span><span></span><span></span></div>
+              <span class="strength-label" id="strength-label">Too short</span>
+            </div>
+            <span class="field-error" id="signup-pw-err"></span>
+          </div>
+          <div id="signup-error" class="form-alert hidden"></div>
+          <button type="submit" class="btn-primary btn-full" id="signup-btn">
+            <span class="btn-text">Create Account</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </form>
+        <p class="auth-switch">Already have an account? <button class="link-btn" id="go-login">Sign in</button></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== APP SHELL ====================== -->
+  <div id="app-shell" class="app-shell hidden">
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon-sm">
+            <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+              <rect width="32" height="32" rx="10" fill="url(#brandGrad2)"/>
+              <path d="M8 16l5 5 11-11" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="brandGrad2" x1="0" y1="0" x2="32" y2="32">
+                  <stop offset="0%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#8b5cf6"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="brand-name">TaskFlow</span>
+        </div>
+        <button id="sidebar-close" class="icon-btn sidebar-close-btn" aria-label="Close sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- User Card -->
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">J</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-name">Jane Doe</div>
+          <div class="user-email" id="sidebar-email">jane@example.com</div>
+        </div>
+      </div>
+
+      <!-- Nav Links -->
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <a href="#dashboard" class="nav-item active" data-page="dashboard" id="nav-dashboard">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </a>
+        <a href="#tasks" class="nav-item" data-page="tasks" id="nav-tasks">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          My Tasks
+          <span class="nav-badge" id="nav-tasks-badge"></span>
+        </a>
+        <a href="#board" class="nav-item" data-page="board" id="nav-board">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+          Kanban Board
+        </a>
+        <a href="#projects" class="nav-item" data-page="projects" id="nav-projects">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          Projects
+        </a>
+      </nav>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Quick Stats -->
+      <div class="sidebar-stats">
+        <div class="stat-mini">
+          <span class="stat-mini-label">Today's tasks</span>
+          <span class="stat-mini-val" id="stat-today">0</span>
+        </div>
+        <div class="stat-mini">
+          <span class="stat-mini-label">Completed</span>
+          <span class="stat-mini-val success" id="stat-done">0</span>
+        </div>
+        <div class="stat-mini">
+          <span class="stat-mini-label">Overdue</span>
+          <span class="stat-mini-val danger" id="stat-overdue">0</span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="nav-item theme-toggle" id="theme-toggle">
+          <svg class="nav-icon" id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="nav-icon hidden" id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span id="theme-label">Dark Mode</span>
+        </button>
+        <button class="nav-item logout-btn" id="logout-btn">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="menu-btn" class="icon-btn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="topbar-search">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="search" id="global-search" placeholder="Search tasks…" aria-label="Search tasks" />
+          </div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn-primary btn-sm" id="new-task-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New Task
+          </button>
+          <div class="sync-indicator" id="sync-indicator" title="Cross-tab sync active">
+            <span class="sync-dot"></span>
+          </div>
+          <div class="topbar-avatar" id="topbar-avatar">J</div>
+        </div>
+      </header>
+
+      <!-- ========= DASHBOARD PAGE ========= -->
+      <section id="page-dashboard" class="page active">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title" id="dashboard-greeting">Good morning! 👋</h1>
+            <p class="page-subtitle">Here's what's happening with your tasks today.</p>
+          </div>
+          <div class="page-actions">
+            <span class="live-clock" id="live-clock"></span>
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card glass-card" id="stat-total-card">
+            <div class="stat-card-icon purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div class="stat-card-body">
+              <div class="stat-card-val" id="stat-total">0</div>
+              <div class="stat-card-label">Total Tasks</div>
+            </div>
+            <div class="stat-card-trend" id="stat-total-trend"></div>
+          </div>
+          <div class="stat-card glass-card" id="stat-done-card">
+            <div class="stat-card-icon green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="stat-card-body">
+              <div class="stat-card-val" id="stat-completed">0</div>
+              <div class="stat-card-label">Completed</div>
+            </div>
+            <div class="stat-card-trend" id="stat-done-sub"></div>
+          </div>
+          <div class="stat-card glass-card" id="stat-overdue-card">
+            <div class="stat-card-icon red">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="stat-card-body">
+              <div class="stat-card-val danger" id="stat-overdue-val">0</div>
+              <div class="stat-card-label">Overdue</div>
+            </div>
+          </div>
+          <div class="stat-card glass-card" id="stat-today-card">
+            <div class="stat-card-icon amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="stat-card-body">
+              <div class="stat-card-val" id="stat-today-val">0</div>
+              <div class="stat-card-label">Due Today</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- Progress Section -->
+          <div class="glass-card dashboard-card">
+            <div class="card-header">
+              <h2 class="card-title">Overall Progress</h2>
+            </div>
+            <div class="progress-section">
+              <div class="big-progress">
+                <svg class="progress-ring" viewBox="0 0 120 120">
+                  <circle class="progress-ring-bg" cx="60" cy="60" r="50"/>
+                  <circle class="progress-ring-fill" id="progress-ring-fill" cx="60" cy="60" r="50"/>
+                </svg>
+                <div class="progress-ring-text">
+                  <span class="progress-pct" id="progress-pct">0%</span>
+                  <span class="progress-lbl">Done</span>
+                </div>
+              </div>
+              <div class="progress-breakdown">
+                <div class="breakdown-item">
+                  <span class="breakdown-dot todo"></span>
+                  <span class="breakdown-label">To Do</span>
+                  <span class="breakdown-val" id="bd-todo">0</span>
+                </div>
+                <div class="breakdown-item">
+                  <span class="breakdown-dot inprogress"></span>
+                  <span class="breakdown-label">In Progress</span>
+                  <span class="breakdown-val" id="bd-inprogress">0</span>
+                </div>
+                <div class="breakdown-item">
+                  <span class="breakdown-dot review"></span>
+                  <span class="breakdown-label">Review</span>
+                  <span class="breakdown-val" id="bd-review">0</span>
+                </div>
+                <div class="breakdown-item">
+                  <span class="breakdown-dot done"></span>
+                  <span class="breakdown-label">Completed</span>
+                  <span class="breakdown-val" id="bd-done">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Priority Chart -->
+          <div class="glass-card dashboard-card">
+            <div class="card-header">
+              <h2 class="card-title">Priority Breakdown</h2>
+            </div>
+            <div class="priority-chart">
+              <div class="priority-bar-row">
+                <span class="priority-bar-label critical">Critical</span>
+                <div class="priority-bar-track"><div class="priority-bar-fill critical" id="pbar-critical"></div></div>
+                <span class="priority-bar-num" id="pnum-critical">0</span>
+              </div>
+              <div class="priority-bar-row">
+                <span class="priority-bar-label high">High</span>
+                <div class="priority-bar-track"><div class="priority-bar-fill high" id="pbar-high"></div></div>
+                <span class="priority-bar-num" id="pnum-high">0</span>
+              </div>
+              <div class="priority-bar-row">
+                <span class="priority-bar-label medium">Medium</span>
+                <div class="priority-bar-track"><div class="priority-bar-fill medium" id="pbar-medium"></div></div>
+                <span class="priority-bar-num" id="pnum-medium">0</span>
+              </div>
+              <div class="priority-bar-row">
+                <span class="priority-bar-label low">Low</span>
+                <div class="priority-bar-track"><div class="priority-bar-fill low" id="pbar-low"></div></div>
+                <span class="priority-bar-num" id="pnum-low">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="glass-card dashboard-card span-2">
+            <div class="card-header">
+              <h2 class="card-title">Recent Tasks</h2>
+              <a href="#tasks" class="card-link" data-page="tasks">View all →</a>
+            </div>
+            <div class="recent-tasks-list" id="recent-tasks-list">
+              <div class="empty-state-sm">No tasks yet. <button class="link-btn" id="create-first-task">Create your first task →</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========= TASKS PAGE ========= -->
+      <section id="page-tasks" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">My Tasks</h1>
+            <p class="page-subtitle" id="tasks-subtitle">All your tasks in one place</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn-primary" id="new-task-btn-2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Task
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar glass-card">
+          <div class="filter-group">
+            <label class="filter-label">Status</label>
+            <div class="filter-chips" id="filter-status">
+              <button class="chip active" data-val="all">All</button>
+              <button class="chip" data-val="todo">To Do</button>
+              <button class="chip" data-val="inprogress">In Progress</button>
+              <button class="chip" data-val="review">Review</button>
+              <button class="chip" data-val="done">Done</button>
+            </div>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Priority</label>
+            <div class="filter-chips" id="filter-priority">
+              <button class="chip active" data-val="all">All</button>
+              <button class="chip chip-critical" data-val="critical">Critical</button>
+              <button class="chip chip-high" data-val="high">High</button>
+              <button class="chip chip-medium" data-val="medium">Medium</button>
+              <button class="chip chip-low" data-val="low">Low</button>
+            </div>
+          </div>
+          <div class="filter-group filter-sort">
+            <label class="filter-label">Sort</label>
+            <select id="sort-select" class="sort-select">
+              <option value="created-desc">Newest first</option>
+              <option value="created-asc">Oldest first</option>
+              <option value="due-asc">Due date (asc)</option>
+              <option value="due-desc">Due date (desc)</option>
+              <option value="priority-desc">Priority (high→low)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tasks List -->
+        <div class="tasks-list-container">
+          <div class="tasks-list" id="tasks-list">
+            <!-- tasks rendered here -->
+          </div>
+          <div class="empty-state hidden" id="tasks-empty">
+            <div class="empty-icon">📋</div>
+            <h3>No tasks found</h3>
+            <p>Try changing your filters or create a new task.</p>
+            <button class="btn-primary" id="new-task-btn-3">Create Task</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========= KANBAN BOARD PAGE ========= -->
+      <section id="page-board" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Kanban Board</h1>
+            <p class="page-subtitle">Drag and drop tasks between columns</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn-primary" id="new-task-btn-board">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Task
+            </button>
+          </div>
+        </div>
+
+        <div class="kanban-board" id="kanban-board">
+          <div class="kanban-col" data-status="todo">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="col-dot todo"></span>
+                <span>To Do</span>
+                <span class="col-count" id="col-count-todo">0</span>
+              </div>
+            </div>
+            <div class="kanban-col-body" id="col-todo" data-status="todo"></div>
+          </div>
+          <div class="kanban-col" data-status="inprogress">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="col-dot inprogress"></span>
+                <span>In Progress</span>
+                <span class="col-count" id="col-count-inprogress">0</span>
+              </div>
+            </div>
+            <div class="kanban-col-body" id="col-inprogress" data-status="inprogress"></div>
+          </div>
+          <div class="kanban-col" data-status="review">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="col-dot review"></span>
+                <span>In Review</span>
+                <span class="col-count" id="col-count-review">0</span>
+              </div>
+            </div>
+            <div class="kanban-col-body" id="col-review" data-status="review"></div>
+          </div>
+          <div class="kanban-col" data-status="done">
+            <div class="kanban-col-header">
+              <div class="kanban-col-title">
+                <span class="col-dot done"></span>
+                <span>Done</span>
+                <span class="col-count" id="col-count-done">0</span>
+              </div>
+            </div>
+            <div class="kanban-col-body" id="col-done" data-status="done"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========= PROJECTS PAGE ========= -->
+      <section id="page-projects" class="page hidden">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Projects</h1>
+            <p class="page-subtitle">Organize your tasks by project</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn-primary" id="new-project-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Project
+            </button>
+          </div>
+        </div>
+        <div class="projects-grid" id="projects-grid">
+          <!-- projects rendered here -->
+        </div>
+        <div class="empty-state hidden" id="projects-empty">
+          <div class="empty-icon">📁</div>
+          <h3>No projects yet</h3>
+          <p>Create a project to group your tasks together.</p>
+          <button class="btn-primary" id="new-project-btn-2">Create Project</button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav" aria-label="Bottom navigation">
+      <a href="#dashboard" class="mobile-nav-item active" data-page="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="#tasks" class="mobile-nav-item" data-page="tasks">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span>Tasks</span>
+      </a>
+      <a href="#board" class="mobile-nav-item" data-page="board">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+        <span>Board</span>
+      </a>
+      <a href="#projects" class="mobile-nav-item" data-page="projects">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        <span>Projects</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- ====================== TASK MODAL ====================== -->
+  <div id="task-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal glass-card">
+      <div class="modal-header">
+        <h2 id="modal-title" class="modal-title">New Task</h2>
+        <button class="icon-btn" id="close-modal" aria-label="Close modal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="task-form" class="task-form" novalidate>
+        <input type="hidden" id="task-id" />
+        <div class="form-group">
+          <label for="task-title">Task Title <span class="required">*</span></label>
+          <input type="text" id="task-title" placeholder="What needs to be done?" required maxlength="120" />
+          <span class="field-error" id="task-title-err"></span>
+        </div>
+        <div class="form-group">
+          <label for="task-desc">Description</label>
+          <textarea id="task-desc" placeholder="Add more details…" rows="3" maxlength="500"></textarea>
+          <span class="char-count" id="task-desc-count">0/500</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-priority">Priority</label>
+            <select id="task-priority">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="task-status">Status</label>
+            <select id="task-status">
+              <option value="todo" selected>To Do</option>
+              <option value="inprogress">In Progress</option>
+              <option value="review">In Review</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-due">Due Date</label>
+            <input type="date" id="task-due" />
+          </div>
+          <div class="form-group">
+            <label for="task-project">Project</label>
+            <select id="task-project">
+              <option value="">No project</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="task-tags">Tags <span class="hint">(comma separated)</span></label>
+          <input type="text" id="task-tags" placeholder="design, frontend, urgent…" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" id="cancel-task">Cancel</button>
+          <button type="submit" class="btn-primary" id="save-task-btn">
+            <span class="btn-text">Save Task</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================== PROJECT MODAL ====================== -->
+  <div id="project-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal glass-card">
+      <div class="modal-header">
+        <h2 class="modal-title" id="project-modal-title">New Project</h2>
+        <button class="icon-btn" id="close-project-modal" aria-label="Close modal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="project-form" class="task-form" novalidate>
+        <input type="hidden" id="project-id" />
+        <div class="form-group">
+          <label for="project-name">Project Name <span class="required">*</span></label>
+          <input type="text" id="project-name" placeholder="e.g. Website Redesign" required maxlength="60" />
+          <span class="field-error" id="project-name-err"></span>
+        </div>
+        <div class="form-group">
+          <label for="project-desc">Description</label>
+          <textarea id="project-desc" placeholder="What is this project about?" rows="2" maxlength="200"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker" id="project-color-picker">
+            <button type="button" class="color-swatch active" data-color="#6366f1" style="background:#6366f1"></button>
+            <button type="button" class="color-swatch" data-color="#8b5cf6" style="background:#8b5cf6"></button>
+            <button type="button" class="color-swatch" data-color="#ec4899" style="background:#ec4899"></button>
+            <button type="button" class="color-swatch" data-color="#f59e0b" style="background:#f59e0b"></button>
+            <button type="button" class="color-swatch" data-color="#10b981" style="background:#10b981"></button>
+            <button type="button" class="color-swatch" data-color="#3b82f6" style="background:#3b82f6"></button>
+            <button type="button" class="color-swatch" data-color="#ef4444" style="background:#ef4444"></button>
+            <button type="button" class="color-swatch" data-color="#14b8a6" style="background:#14b8a6"></button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" id="cancel-project">Cancel</button>
+          <button type="submit" class="btn-primary">Save Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================== TOAST CONTAINER ====================== -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ====================== CONFETTI CANVAS ====================== -->
+  <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
+
+  <script src="app.js?v=2"></script>
+</body>
+</html>
