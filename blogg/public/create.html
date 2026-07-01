@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Write — Inkwell</title>
+  <meta name="description" content="Create and publish a new blog post on Inkwell.">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar" id="navbar"></nav>
+  </header>
+
+  <main class="container-sm">
+    <div class="create-page">
+      <div class="create-header">
+        <h1 class="create-title" id="page-title">✏️ Write a Post</h1>
+        <p class="create-subtitle">Share your ideas, stories, or knowledge with the world</p>
+      </div>
+
+      <div id="global-alert" class="alert alert-error"></div>
+
+      <div class="editor-card">
+        <div class="editor-toolbar">
+          <div class="editor-dot red"></div>
+          <div class="editor-dot yellow"></div>
+          <div class="editor-dot green"></div>
+          <span class="editor-toolbar-label">✍️ Inkwell Editor</span>
+        </div>
+
+        <div class="editor-body">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" for="post-title">Post Title *</label>
+            <input
+              class="form-input"
+              type="text"
+              id="post-title"
+              placeholder="Write a compelling title..."
+              style="font-size:1.2rem;font-weight:600;"
+              maxlength="200"
+            >
+            <div class="form-error" id="title-error"></div>
+          </div>
+
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" for="post-excerpt">Short Description *</label>
+            <input
+              class="form-input"
+              type="text"
+              id="post-excerpt"
+              placeholder="A brief summary of your post (shown on home page)..."
+              maxlength="300"
+            >
+            <div class="form-error" id="excerpt-error"></div>
+          </div>
+
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" for="post-cover">Cover Image URL <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+            <input
+              class="form-input"
+              type="url"
+              id="post-cover"
+              placeholder="https://images.unsplash.com/..."
+            >
+            <div id="cover-preview" style="margin-top:0.75rem;display:none;">
+              <img id="cover-img" src="" alt="Cover preview" style="width:100%;max-height:200px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--border);">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin:0;">
+            <label class="form-label" for="post-content">Content *</label>
+            <textarea
+              class="form-input editor-content"
+              id="post-content"
+              placeholder="Write your post content here...
+
+You can write multiple paragraphs, share your thoughts, tell a story — this is your canvas."
+            ></textarea>
+            <div class="form-error" id="content-error"></div>
+            <div style="text-align:right;font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem;">
+              <span id="word-count">0</span> words
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:0.75rem;padding-top:0.5rem;border-top:1px solid var(--border);">
+            <a href="/" class="btn btn-ghost">Cancel</a>
+            <button id="publish-btn" class="btn btn-gradient" onclick="publishPost()">
+              🚀 Publish Post
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/app.js"></script>
+  <script>
+    // Auth guard
+    if (!Auth.isLoggedIn()) window.location.href = '/login.html';
+
+    renderNavbar();
+
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('id');
+    let isEditMode = !!editId;
+
+    // Word counter
+    document.getElementById('post-content').addEventListener('input', () => {
+      const words = document.getElementById('post-content').value.trim().split(/\s+/).filter(Boolean).length;
+      document.getElementById('word-count').textContent = words;
+    });
+
+    // Cover image preview
+    document.getElementById('post-cover').addEventListener('input', () => {
+      const url = document.getElementById('post-cover').value.trim();
+      const preview = document.getElementById('cover-preview');
+      const img = document.getElementById('cover-img');
+      if (url) {
+        img.src = url;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    });
+
+    // Load post data if editing
+    async function loadPostForEdit() {
+      if (!isEditMode) return;
+      document.getElementById('page-title').textContent = '✏️ Edit Post';
+      document.getElementById('publish-btn').textContent = '💾 Save Changes';
+      document.title = 'Edit Post — Inkwell';
+
+      try {
+        // Fetch all posts and find by id (or fetch by slug if we had it)
+        const user = Auth.getUser();
+        const data = await apiFetch(`/posts/user/${user._id}`);
+        const post = data.posts.find(p => p._id === editId);
+        if (!post) throw new Error('Post not found');
+
+        document.getElementById('post-title').value = post.title;
+        document.getElementById('post-excerpt').value = post.excerpt;
+        document.getElementById('post-content').value = post.content;
+        document.getElementById('post-cover').value = post.cover_image || '';
+
+        // Trigger word count
+        const words = post.content.trim().split(/\s+/).filter(Boolean).length;
+        document.getElementById('word-count').textContent = words;
+
+        // Show cover preview
+        if (post.cover_image) {
+          document.getElementById('cover-img').src = post.cover_image;
+          document.getElementById('cover-preview').style.display = 'block';
+        }
+      } catch (err) {
+        showAlert('global-alert', `Failed to load post: ${err.message}`, 'error');
+      }
+    }
+
+    function validateForm() {
+      let valid = true;
+      const title = document.getElementById('post-title').value.trim();
+      const excerpt = document.getElementById('post-excerpt').value.trim();
+      const content = document.getElementById('post-content').value.trim();
+
+      const setErr = (id, msg) => {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.classList.toggle('show', !!msg);
+      };
+
+      if (!title) { setErr('title-error', 'Title is required'); valid = false; }
+      else setErr('title-error', '');
+
+      if (!excerpt) { setErr('excerpt-error', 'Short description is required'); valid = false; }
+      else setErr('excerpt-error', '');
+
+      if (!content || content.length < 10) { setErr('content-error', 'Content must be at least 10 characters'); valid = false; }
+      else setErr('content-error', '');
+
+      return valid;
+    }
+
+    async function publishPost() {
+      hideAlert('global-alert');
+      if (!validateForm()) return;
+
+      const title = document.getElementById('post-title').value.trim();
+      const excerpt = document.getElementById('post-excerpt').value.trim();
+      const content = document.getElementById('post-content').value.trim();
+      const cover_image = document.getElementById('post-cover').value.trim();
+
+      setLoading('publish-btn', true, isEditMode ? 'Saving...' : 'Publishing...');
+
+      try {
+        let data;
+        if (isEditMode) {
+          data = await apiFetch(`/posts/${editId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ title, excerpt, content, cover_image })
+          });
+          window.location.href = `/post.html?slug=${data.post.slug}`;
+        } else {
+          data = await apiFetch('/posts', {
+            method: 'POST',
+            body: JSON.stringify({ title, excerpt, content, cover_image })
+          });
+          window.location.href = `/post.html?slug=${data.post.slug}`;
+        }
+      } catch (err) {
+        showAlert('global-alert', err.message, 'error');
+        setLoading('publish-btn', false, isEditMode ? '💾 Save Changes' : '🚀 Publish Post');
+      }
+    }
+
+    loadPostForEdit();
+  </script>
+</body>
+</html>

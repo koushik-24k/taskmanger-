@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loading... — Inkwell</title>
+  <meta name="description" content="Read blog posts and join the conversation on Inkwell.">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar" id="navbar"></nav>
+  </header>
+
+  <main class="container-sm" style="padding-top:2.5rem;padding-bottom:4rem;">
+    <div id="post-container">
+      <div class="loading-spinner"><div class="spinner"></div></div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Built with ❤️ on <strong>Inkwell</strong> &mdash; <a href="/">Read more posts</a></p>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    renderNavbar();
+
+    const slug = new URLSearchParams(window.location.search).get('slug');
+    if (!slug) window.location.href = '/';
+
+    let currentPost = null;
+
+    async function loadPost() {
+      const container = document.getElementById('post-container');
+      try {
+        const data = await apiFetch(`/posts/${slug}`);
+        currentPost = data.post;
+
+        document.title = `${currentPost.title} — Inkwell`;
+        document.querySelector('meta[name="description"]').setAttribute('content', currentPost.excerpt);
+
+        const user = Auth.getUser();
+        const isOwner = user && user.id === currentPost.author_id;
+
+        const coverHTML = currentPost.cover_image
+          ? `<div class="post-cover-wrapper"><img src="${escapeHtml(currentPost.cover_image)}" alt="${escapeHtml(currentPost.title)}" onerror="this.parentElement.style.display='none'"></div>`
+          : '';
+
+        container.innerHTML = `
+          <div class="post-detail animate-fadeIn">
+            ${coverHTML}
+            <div class="post-header">
+              <h1 class="post-title">${escapeHtml(currentPost.title)}</h1>
+              <div class="post-meta">
+                <div class="author-chip">
+                  ${avatarHTML(currentPost.author_name, 28)}
+                  <span style="font-weight:600;">${escapeHtml(currentPost.author_name)}</span>
+                </div>
+                <span>📅 ${formatDate(currentPost.created_at)}</span>
+                ${currentPost.updated_at !== currentPost.created_at
+                  ? `<span style="font-size:0.8rem;color:var(--text-muted);">· edited ${timeAgo(currentPost.updated_at)}</span>`
+                  : ''}
+              </div>
+              ${isOwner ? `
+                <div class="post-actions">
+                  <a href="/create.html?id=${currentPost._id}" class="btn btn-ghost btn-sm">✏️ Edit</a>
+                  <button id="delete-post-btn" class="btn btn-danger btn-sm" onclick="deletePost('${currentPost._id}')">🗑️ Delete</button>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="post-content">${escapeHtml(currentPost.content)}</div>
+
+            <!-- COMMENTS -->
+            <div class="comments-section">
+              <h2 class="comments-header">
+                💬 Comments
+                <span class="comments-count" id="comment-count">0</span>
+              </h2>
+
+              ${Auth.isLoggedIn() ? `
+                <div class="comment-form">
+                  <div class="comment-form-title">Share your thoughts</div>
+                  <div id="comment-alert" class="alert alert-error"></div>
+                  <textarea
+                    id="comment-input"
+                    class="form-input"
+                    placeholder="Write a thoughtful comment..."
+                    rows="3"
+                    style="min-height:90px;"
+                  ></textarea>
+                  <div style="display:flex;justify-content:flex-end;margin-top:0.75rem;">
+                    <button id="submit-comment-btn" class="btn btn-primary btn-sm" onclick="submitComment()">Post comment</button>
+                  </div>
+                </div>
+              ` : `
+                <div class="auth-required">
+                  <p style="color:var(--text-secondary);margin-bottom:1rem;">Sign in to join the conversation</p>
+                  <a href="/login.html" class="btn btn-primary btn-sm">Sign in</a>
+                  <a href="/register.html" class="btn btn-ghost btn-sm" style="margin-left:0.5rem;">Create account</a>
+                </div>
+              `}
+
+              <div id="comments-list">
+                <div class="loading-spinner" style="padding:2rem;"><div class="spinner"></div></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        loadComments();
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">😕</div>
+            <div class="empty-title">Post not found</div>
+            <div class="empty-text">${err.message}</div>
+            <a href="/" class="btn btn-primary">Back to home</a>
+          </div>
+        `;
+      }
+    }
+
+    async function loadComments() {
+      const list = document.getElementById('comments-list');
+      if (!list) return;
+
+      try {
+        const data = await apiFetch(`/comments/${currentPost._id}`);
+        const comments = data.comments;
+        const countEl = document.getElementById('comment-count');
+        if (countEl) countEl.textContent = comments.length;
+
+        if (comments.length === 0) {
+          list.innerHTML = `
+            <div class="empty-state" style="padding:2rem;">
+              <div class="empty-icon">💭</div>
+              <div class="empty-title">No comments yet</div>
+              <div class="empty-text">Be the first to start the conversation!</div>
+            </div>
+          `;
+          return;
+        }
+
+        const user = Auth.getUser();
+        list.innerHTML = comments.map(c => {
+          const isOwner = user && (user._id === c.author_id || user.id === c.author_id);
+          return `
+            <div class="comment-item" id="comment-${c._id}">
+              <div class="comment-avatar">${getInitials(c.author_name)}</div>
+              <div class="comment-body">
+                <div class="comment-meta">
+                  <span class="comment-author">${escapeHtml(c.author_name)}</span>
+                  <span class="comment-time">${timeAgo(c.created_at)}</span>
+                  ${isOwner ? `<button class="comment-delete-btn" onclick="deleteComment('${c._id}')" title="Delete comment">🗑️</button>` : ''}
+                </div>
+                <div class="comment-text">${escapeHtml(c.content)}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        if (list) list.innerHTML = `<p style="color:var(--text-muted);padding:1rem;">Failed to load comments.</p>`;
+      }
+    }
+
+    async function submitComment() {
+      const input = document.getElementById('comment-input');
+      const content = input.value.trim();
+      if (!content) return;
+
+      hideAlert('comment-alert');
+      setLoading('submit-comment-btn', true, 'Posting...');
+
+      try {
+        await apiFetch('/comments', {
+          method: 'POST',
+          body: JSON.stringify({ post_id: currentPost._id, content })
+        });
+        input.value = '';
+        await loadComments();
+      } catch (err) {
+        showAlert('comment-alert', err.message, 'error');
+      } finally {
+        setLoading('submit-comment-btn', false, 'Post comment');
+      }
+    }
+
+    async function deleteComment(id) {
+      if (!confirm('Delete this comment?')) return;
+      try {
+        await apiFetch(`/comments/${id}`, { method: 'DELETE' });
+        const el = document.getElementById(`comment-${id}`);
+      // Remove the old element immediately for smooth UX
+        if (el) {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity 0.3s';
+          setTimeout(() => { el.remove(); loadComments(); }, 300);
+        }
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deletePost(id) {
+      if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+      const btn = document.getElementById('delete-post-btn');
+      btn.disabled = true;
+      btn.textContent = 'Deleting...';
+      try {
+        await apiFetch(`/posts/${id}`, { method: 'DELETE' });
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.textContent = '🗑️ Delete';
+      }
+    }
+
+    // Allow Ctrl+Enter to submit comment
+    document.addEventListener('keydown', (e) => {
+      if (e.target.id === 'comment-input' && e.ctrlKey && e.key === 'Enter') {
+        submitComment();
+      }
+    });
+
+    loadPost();
+  </script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inkwell — A Space for Ideas</title>
+  <meta name="description" content="Inkwell is a modern blogging platform where writers share their ideas, stories, and knowledge with the world.">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar" id="navbar"></nav>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="hero-section">
+      <div class="hero-eyebrow">✨ A space for ideas</div>
+      <h1 class="hero-title">
+        Where <span class="gradient-text">Stories</span> Come<br>to Life
+      </h1>
+      <p class="hero-subtitle">
+        Discover thoughtful writing from creators around the world. Read, comment, and share your own ideas on Inkwell.
+      </p>
+      <div class="hero-actions" id="hero-actions"></div>
+    </section>
+
+    <!-- POSTS SECTION -->
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">📰 Latest Posts</h2>
+          <div id="post-count" style="color:var(--text-muted);font-size:0.9rem;"></div>
+        </div>
+        <div id="posts-container">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Built with ❤️ on <strong>Inkwell</strong> &mdash; <a href="/register.html">Start writing today</a></p>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    // Init navbar
+    renderNavbar('home');
+
+    // Hero CTA based on auth
+    const heroActions = document.getElementById('hero-actions');
+    if (Auth.isLoggedIn()) {
+      heroActions.innerHTML = `
+        <a href="/create.html" class="btn btn-gradient btn-lg">✏️ Write a post</a>
+        <a href="/dashboard.html" class="btn btn-ghost btn-lg">My Dashboard</a>
+      `;
+    } else {
+      heroActions.innerHTML = `
+        <a href="/register.html" class="btn btn-gradient btn-lg">Start Writing Free</a>
+        <a href="/login.html" class="btn btn-ghost btn-lg">Sign in</a>
+      `;
+    }
+
+    // Load posts
+    async function loadPosts() {
+      const container = document.getElementById('posts-container');
+      const countEl = document.getElementById('post-count');
+      try {
+        const data = await apiFetch('/posts');
+        const posts = data.posts;
+
+        countEl.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
+
+        if (posts.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state animate-fadeIn">
+              <div class="empty-icon">📭</div>
+              <div class="empty-title">No posts yet</div>
+              <div class="empty-text">Be the first to share your ideas!</div>
+              <a href="/register.html" class="btn btn-primary">Start writing</a>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="posts-grid animate-fadeIn">
+            ${posts.map(post => postCardHTML(post)).join('')}
+          </div>
+        `;
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <div class="empty-title">Failed to load posts</div>
+            <div class="empty-text">${err.message}</div>
+          </div>
+        `;
+      }
+    }
+
+    loadPosts();
+  </script>
+</body>
+</html>

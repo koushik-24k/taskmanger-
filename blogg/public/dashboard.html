@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Inkwell</title>
+  <meta name="description" content="Manage your blog posts on Inkwell.">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar" id="navbar"></nav>
+  </header>
+
+  <main class="container">
+    <!-- DASHBOARD HEADER -->
+    <div class="dashboard-header">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <div class="dashboard-greeting" id="greeting">👋 Hey there</div>
+          <div style="color:var(--text-secondary);font-size:0.95rem;">Manage your posts and track your activity</div>
+        </div>
+        <a href="/create.html" class="btn btn-gradient">✏️ Write new post</a>
+      </div>
+
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card indigo">
+          <div class="stat-value" id="stat-posts">—</div>
+          <div class="stat-label">Posts published</div>
+        </div>
+        <div class="stat-card rose">
+          <div class="stat-value" id="stat-comments">—</div>
+          <div class="stat-label">Comments received</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-joined">—</div>
+          <div class="stat-label">Member since</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POSTS LIST -->
+    <div>
+      <div class="section-header" style="margin-bottom:1.25rem;">
+        <h2 class="section-title">📝 Your Posts</h2>
+      </div>
+      <div id="posts-list">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>Built with ❤️ on <strong>Inkwell</strong> &mdash; <a href="/">Back to home</a></p>
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    // Auth guard
+    if (!Auth.isLoggedIn()) window.location.href = '/login.html';
+
+    renderNavbar('dashboard');
+
+    const user = Auth.getUser();
+
+    async function loadDashboard() {
+      // Set greeting
+      const hour = new Date().getHours();
+      const greeting = hour < 12 ? '🌅 Good morning' : hour < 18 ? '☀️ Good afternoon' : '🌙 Good evening';
+      document.getElementById('greeting').textContent = `${greeting}, ${user.username}!`;
+
+      // Joined date
+      const meData = await apiFetch('/auth/me').catch(() => null);
+      if (meData?.user) {
+        const yr = new Date(meData.user.created_at).getFullYear();
+        document.getElementById('stat-joined').textContent = yr;
+      }
+
+      // Load posts
+      try {
+        const data = await apiFetch(`/posts/user/${user._id}`);
+        const posts = data.posts;
+
+        document.getElementById('stat-posts').textContent = posts.length;
+
+        const totalComments = posts.reduce((sum, p) => sum + (p.comment_count || 0), 0);
+        document.getElementById('stat-comments').textContent = totalComments;
+
+        const listEl = document.getElementById('posts-list');
+
+        if (posts.length === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state animate-fadeIn">
+              <div class="empty-icon">📭</div>
+              <div class="empty-title">No posts yet</div>
+              <div class="empty-text">You haven't published anything yet. Start writing your first post!</div>
+              <a href="/create.html" class="btn btn-primary">Write your first post</a>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = `
+          <div class="animate-fadeIn">
+            ${posts.map(post => `
+              <div class="post-list-item" id="post-item-${post._id}">
+                <div>
+                  <div class="post-list-item-title">${escapeHtml(post.title)}</div>
+                  <div class="post-list-item-meta" style="margin-top:0.25rem;">
+                    📅 ${formatDate(post.created_at)} · 💬 ${post.comment_count || 0} comments
+                  </div>
+                </div>
+                <div class="post-list-item-actions">
+                  <a href="/post.html?slug=${post.slug}" class="btn btn-ghost btn-sm">👁️ View</a>
+                  <a href="/create.html?id=${post._id}" class="btn btn-ghost btn-sm">✏️ Edit</a>
+                  <button class="btn btn-danger btn-sm" onclick="deletePost('${post._id}')">🗑️</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        document.getElementById('posts-list').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <div class="empty-title">Failed to load posts</div>
+            <div class="empty-text">${err.message}</div>
+          </div>
+        `;
+      }
+    }
+
+    async function deletePost(id) {
+      if (!confirm('Delete this post permanently? Comments will also be removed.')) return;
+      const item = document.getElementById(`post-item-${id}`);
+      try {
+        await apiFetch(`/posts/${id}`, { method: 'DELETE' });
+        if (item) {
+          item.style.opacity = '0';
+          item.style.transition = 'opacity 0.3s';
+          setTimeout(() => { item.remove(); loadDashboard(); }, 300);
+        }
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
